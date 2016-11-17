@@ -3,6 +3,7 @@
   "version": "1.0.7",
   "description": "Async and parallel execution of jobs, tasks and processes with a queue manager",
   "main": "./lib/index.js",
+  "engine": "node >= 0.10.x",
   "scripts": {
     "test": "mocha",
     "build": "babel index.js --out-dir lib",
@@ -19,6 +20,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adleroliveira/jobQ.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adleroliveira/jobQ/issues"
   },
   "author": "Adler Oliveira",
   "license": "ISC",
