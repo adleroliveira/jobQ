@@ -1,6 +1,6 @@
 'use strict'
 const test = require('unit.js')
-const JobQueuer = require('../lib/index.js')
+const JobQueuer = require('../index.js')
 
 describe('JosQ', () => {
   describe('errors', () => {
