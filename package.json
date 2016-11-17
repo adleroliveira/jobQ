@@ -1,7 +1,7 @@
 {
   "name": "jobq",
   "version": "1.0.7",
-  "description": "job queuer",
+  "description": "Async and parallel execution of jobs, tasks and processes with a queue manager",
   "main": "./lib/index.js",
   "scripts": {
     "test": "mocha",
@@ -10,7 +10,11 @@
   },
   "keywords": [
     "job",
-    "queuer"
+    "task",
+    "queue",
+    "process",
+    "async",
+    "paralel"
   ],
   "repository": {
     "type": "git",
