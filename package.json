@@ -1,6 +1,6 @@
 {
   "name": "jobq",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Async and parallel execution of jobs, tasks and processes with a queue manager",
   "main": "./lib/index.js",
   "engine": "node >= 0.10.x",
