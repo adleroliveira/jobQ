@@ -1,10 +1,12 @@
 {
-  "name": "job-queuer",
+  "name": "jobq",
   "version": "1.0.0",
   "description": "job queuer",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "build": "babel index.js --out-dir dist",
+    "postinstall": "npm run build"
   },
   "keywords": [
     "job",
@@ -14,5 +16,10 @@
   "license": "ISC",
   "dependencies": {
     "node-uuid": "^1.4.7"
+  },
+  "devDependencies": {
+    "babel": "^6.5.2",
+    "babel-cli": "^6.18.0",
+    "babel-preset-es2015": "^6.18.0"
   }
 }
