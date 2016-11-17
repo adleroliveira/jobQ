@@ -12,6 +12,10 @@
     "job",
     "queuer"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adleroliveira/jobQ.git"
+  },
   "author": "Adler Oliveira",
   "license": "ISC",
   "dependencies": {
