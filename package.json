@@ -5,7 +5,7 @@
   "main": "./lib/index.js",
   "engine": "node >= 0.10.x",
   "scripts": {
-    "test": "npm run build && istanbul cover _mocha ./tests",
+    "test": "istanbul cover _mocha babel ./tests/index.js",
     "build": "babel index.js --out-dir lib",
     "prepublish": "npm run build"
   },
