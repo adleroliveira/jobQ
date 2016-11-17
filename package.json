@@ -1,6 +1,6 @@
 {
   "name": "jobq",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "job queuer",
   "main": "./lib/index.js",
   "scripts": {
