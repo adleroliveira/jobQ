@@ -2,11 +2,11 @@
   "name": "jobq",
   "version": "1.0.1",
   "description": "job queuer",
-  "main": "./dist/index.js",
+  "main": "./lib/index.js",
   "scripts": {
     "test": "mocha",
-    "build": "babel index.js --out-dir dist",
-    "postinstall": "npm run build"
+    "build": "babel index.js --out-dir lib",
+    "prepublish": "npm run build"
   },
   "keywords": [
     "job",
