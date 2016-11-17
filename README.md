@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/adleroliveira/jobQ.svg?branch=master)](https://travis-ci.org/adleroliveira/jobQ)
+
 # jobQ
 Async and parallel execution of jobs, tasks and processes
 
