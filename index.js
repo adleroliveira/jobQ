@@ -14,6 +14,7 @@ class JobQueuer {
     if (!config.source || (typeof config.source !== 'function' && !Array.isArray(config.source))) throw new Error(SOURCE_REQUIRED)
     if (config.proceedOnError && !typeof config.proceedOnError === 'boolean') throw new Error(TYPE_PROCEED_ON_ERROR)
     this.events = {}
+    this.debug = config.debug
     this.maxProceses = config.maxProceses || 1
     this.process = config.process
     this.source = config.source
@@ -31,7 +32,7 @@ class JobQueuer {
   }
 
   emit(event, payload) {
-    if (this.debug && console) console.log(`[${new Date()}][${event}]`)
+    if (this.debug && console) console.log(`[${new Date()}][${event}]`, payload)
     if (this.events[event]) this.events[event](payload)
   }
 
