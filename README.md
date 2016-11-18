@@ -1,18 +1,19 @@
 [![Build Status](https://travis-ci.org/adleroliveira/jobQ.svg?branch=master)](https://travis-ci.org/adleroliveira/jobQ)
 
 # jobQ
-Async and parallel execution of jobs, tasks and processes
+Async and parallel execution of jobs, tasks and processes. This library is aimed to solve the problem of having to limit how many parallel tasks you want to perform. 
+It accepts several kinds of sources including Arrays, Promises, Functions, etc.
 
 ## Installation
 ```bash
-npm install --save jobQ
+npm install --save jobq
 ```
 
 ## Usage
 ```js
-var jobQ = require('jobQ') 
+var jobQ = require('jobq') 
 
-var queue = new JobQueuer({
+var queue = new jobQ({
   process: function(x, callback){
     setTimeout(function() {
       callback(null, x)
@@ -27,7 +28,7 @@ queue.start()
 
 ## Events
 ```js
-var queue = new JobQueuer({
+var queue = new jobQ({
   process: myProcess,
   source: mySource,
   maxProceses: 2
