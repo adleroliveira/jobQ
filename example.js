@@ -44,16 +44,9 @@ let jobQ = new JobQueuer({
   source: source,
   maxProceses: maxConcurrentJobs
 })
-.on('start', () => events.start++)
-.on('jobFetch', () => events.jobFetch++)
-.on('jobRun', () => events.jobRun++)
-.on('jobFinish', () => events.jobFinish++)
-.on('processFinish', () => {
-  events.processFinish++
-  console.log(events)
-})
-.on('error', (err) => {
-  console.log(err)
-  events.error++
-})
-.start()
+
+jobQ.on('jobFinnish', (r) => console.log(jobQ.runningJobsCount(), `result: ${JSON.stringify(r)}`))
+jobQ.on('jobFetch', (r) => console.log('Job Fetched', JSON.stringify(r)))
+jobQ.on('processFinish', (r) => console.log(`Total jobs processed: ${JSON.stringify(r)}`))
+jobQ.on('error', console.error)
+jobQ.start()
