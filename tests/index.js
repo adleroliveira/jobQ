@@ -44,7 +44,7 @@ describe('JosQ', () => {
       it('Should stop after error', () => {
         return new Promise((resolve) => {
           new JobQueuer({
-            process: (cb) => {cb(new Error)},
+            process: (val, cb) => {cb(new Error)},
             source: [1, 2],
             stopOnError: true
           })
@@ -116,9 +116,11 @@ describe('JosQ', () => {
         let jobQ = new JobQueuer({
           maxProceses: 10,
           source: source,
-          process: (val, cb) => setTimeout(() => {
-            cb(null, val)
-          }, 5)
+          process: (val, cb) => {
+            setTimeout(() => {
+              cb(null, val)
+            }, 5)
+          }
         })
         jobQ.on('jobFinish', () => {
           maxConcurrentJobs = Math.max(maxConcurrentJobs, jobQ.runningJobsCount())

@@ -27,7 +27,6 @@
   "author": "Adler Oliveira",
   "license": "ISC",
   "dependencies": {
-    "node-uuid": "^1.4.7"
   },
   "devDependencies": {
     "babel": "^6.5.2",
