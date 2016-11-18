@@ -1,5 +1,3 @@
-const uuid = require('node-uuid')
-
 // Error constants
 const CONFIG_REQUIRED = 'Configuration Object Required'
 const PROCESS_REQUIRED = 'required paramenter [process] must be a function'
@@ -30,11 +28,59 @@ class JobQueuer {
     } else {
       this.source = config.source
     }
-    this.running = {}
+    this.running = 0
     this.jobsFinished = 0
     this.jobErrors = 0
     this.fillingJobs = false
+    this.autoincrementId = 0
     this.status = 'stoped'
+  }
+
+  start() {
+    this.status = 'running'
+    this.startTime = new Date()
+    this.emit('start', {
+      startTime: this.startTime,
+      maxProceses: this.maxProceses,
+      stopOnError: this.stopOnError,
+      sourceType: this.sourceType,
+      status: this.status
+    })
+    this.init()
+  }
+
+  init () {
+    if (this.sourceType === 'promise') {
+      this.source.then((data) => {
+        this.sourceType = Array.isArray(data) ? 'array' : data.then ? 'promise' : 'function'
+        if (this.sourceType === 'array') {
+          this.source = data.slice(0)
+        } else {
+          this.source = data
+        }
+        this.init()
+      }).catch((err) => {
+        this.processFinish(err)
+      })
+    } else {
+      this.fillJobs()
+    }
+  }
+
+  processFinish (err) {
+    if (err) {
+      this.emit('error', err)
+      this.status = 'error'
+    } else {
+      this.status = 'finished'
+    }
+    this.emit('processFinish', {
+      startTime: this.startTime,
+      endTime: new Date(),
+      processed: this.jobsFinished,
+      errors: this.jobErrors,
+      status: this.status
+    })
   }
 
   on(event, handler) {
@@ -48,88 +94,39 @@ class JobQueuer {
     if (this.events[event]) this.events[event](payload)
   }
 
-  start() {
-    this.status = 'running'
-    this.startTime = this.startTime || new Date()
-    if (this.sourceType === 'promise') {
-      const self = this
-      this.source.then((data) => {
-        this.sourceType = Array.isArray(data) ? 'array' : data.then ? 'promise' : 'function'
-        if (this.sourceType === 'array') {
-          this.source = data.slice(0)
-        } else {
-          this.source = data
-        }
-        this.start()
-      }).catch((err) => {
-        this.emit('error', err)
-        this.status = 'error'
-        this.emit('processFinish', {
-          startTime: this.startTime,
-          endTime: new Date(),
-          processed: this.jobsFinished,
-          errors: this.jobErrors,
-          status: this.status
-        })
-      })
-    } else {
-      this.emit('start', {
-        startTime: this.startTime,
-        maxProceses: this.maxProceses,
-        stopOnError: this.stopOnError,
-        sourceType: this.sourceType,
-        status: this.status,
-        type: this.sourceType
-      })
-      this.fillJobs()
-    }
-    return this
-  }
-
   runningJobsCount() {
-    return Object.keys(this.running).length
+    return this.running
   }
 
   runJob(jobPromise) {
-    let jobId = uuid.v4()
+    this.running++
+    let jobId = ++this.autoincrementId
     this.emit('jobRun', jobId)
-    this.running[jobId] = jobPromise
     let next = () => {
-      let self = this
-      var jobToDelete = this.running[jobId]
-      delete this.running[jobId]
-      let runningCount = Object.keys(this.running).length
+      let runningCount = --this.running
       if ((!runningCount && this.status === 'empty') || this.status === 'error') {
         this.status = 'finished'
-        return this.emit('processFinish', {
-          startTime: this.startTime,
-          endTime: new Date(),
-          processed: this.jobsFinished,
-          errors: this.jobErrors,
-          status: this.status
-        })
+        return this.processFinish()
       }
       this.fillJobs()
     }
 
     let jobStartTime = new Date()
-    jobPromise.then((result) => {
-      if (result) {
+    jobPromise((err, result) => {
+      if (err) {
+        this.emit('error', err)
+        this.jobErrors ++
+      } else if (result) {
         let jobEndTime = new Date()
         this.emit('jobFinish', {
           jobId,
           jobStartTime,
           jobEndTime,
           result,
-          jobsRunning: Object.keys(this.running).length
+          jobsRunning: this.running
         })
         this.jobsFinished ++
       }
-      next()
-    })
-    .catch((e) => {
-      this.emit('error', e)
-      this.jobErrors ++
       next()
     })
   }
@@ -138,60 +135,95 @@ class JobQueuer {
     if (this.fillingJobs) return
     this.fillingJobs = true
 
-    const resolveJobValue = (jobValue, resolve, reject) => {
-      if (jobValue) {
-        let jobPromise = this.process(jobValue, (err, value) => {
-          if (err) return reject(err)
-          resolve(value)
-        })
-        if (jobPromise) {
-          if (typeof jobPromise.then === 'function') return jobPromise.then(resolve)
-          resolve(jobPromise)
+    const resolveJobValue = (jobValue, done) => {
+      try {
+        let resolved = false
+        if (jobValue) {
+          let jobPromise = this.process(jobValue, (err, value) => {
+            if (!resolved) done(err, value)
+          })
+          if (jobPromise) {
+            resolved = true
+            if (typeof jobPromise.then === 'function') {
+              return jobPromise.then((data) => {
+                done(null, data)
+              }).catch(done)
+            }
+            done(null, jobPromise)
+          }
+        } else {
+          this.status = 'empty'
+          done()
         }
-      } else {
-        resolve()
-        this.status = 'empty'
+      } catch (e) {
+        done(e)
       }
     }
 
     while (
-      Object.keys(this.running).length < this.maxProceses
+      this.running < this.maxProceses
       && this.status === 'running'
       && ((this.sourceType === 'array' && this.source.length) || (this.sourceType !== 'array'))
     ) {
       this.emit('jobFetch', {
-        jobsRunning: Object.keys(this.running).length
+        jobsRunning: this.running
       })
-      this.runJob(new Promise((resolve, reject) => {
+
+      const job = (done) => {
         let item
+        let resolved = false
         if (this.sourceType === 'array') {
-          item = this.source.pop()
+          item = this.source.splice(0, 1)[0]
           if (!this.source.length) this.status = 'empty'
         } else {
           item = this.source((err, jobValue) => {
-            if (err) return reject(err)
-            resolveJobValue(jobValue, resolve, reject)
+            if (!resolved) {
+              if (err) return done(err)
+              resolveJobValue(jobValue, done)
+            }
           })
         }
         if (undefined !== item) {
           if (item && item.then && typeof item.then === 'function') {
             item.then((jobValue) => {
-              resolveJobValue(jobValue, resolve, reject)
-            }).catch(reject)
+              resolveJobValue(jobValue, done)
+            }).catch(done)
           } else {
             if (item) {
-              resolveJobValue(item, resolve, reject)
+              resolved = true
+              resolveJobValue(item, done)
             } else {
               this.status = 'empty'
-              resolve()
+              done()
             }
           }
         }
-      }))
+      }
+      this.runJob(job)
     }
     this.fillingJobs = false
   }
 }
 
-module.exports = JobQueuer
+class JobQ {
+  constructor (options) {
+    this.instance = new JobQueuer(options)
+  }
+
+  on (event, handler) {
+    this.instance.on(event, handler)
+    return this
+  }
+
+  start () {
+    this.instance.start()
+    return this
+  }
+
+  runningJobsCount () {
+    return this.instance.runningJobsCount()
+  }
+}
+
+module.exports = JobQ
 
