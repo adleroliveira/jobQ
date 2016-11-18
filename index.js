@@ -161,7 +161,7 @@ class JobQueuer {
     }
 
     while (
-      this.running < this.maxProceses
+      (this.maxProceses === 0 || this.running < this.maxProceses)
       && this.status === 'running'
       && ((this.sourceType === 'array' && this.source.length) || (this.sourceType !== 'array'))
     ) {
