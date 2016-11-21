@@ -46,6 +46,8 @@ queue.on('jobFetch', function(){})
 queue.on('jobRun', function(){})
 queue.on('jobFinish', function(){})
 queue.on('processFinish', function(){})
+queue.on('pause', function(){})
+queue.on('resume', function(){})
 queue.on('error', function(){})
 
 queue.start()
@@ -83,6 +85,22 @@ Emited once after calling ```start()``` with an object containing:
  * errors: ```<Number>``` total amount of errors
  * status: ```<String>``` queue status. will always be ```finished``` or ```error```.
 
+#### pause
+Emited once after calling ```pause()``` with an object containing:
+ * startTime: ```<Date>``` date when start was called
+ * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+ * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+ * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+ * status: ```<String>``` queue status. will always be paused at this point.
+
+#### resume
+Emited once after calling ```resume()``` with an object containing:
+ * startTime: ```<Date>``` date when start was called
+ * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+ * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+ * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+ * status: ```<String>``` queue status. will always be running at this point.
+
 #### error
 Emited once for each job error:
  * ```<Error>``` error received
@@ -95,6 +113,8 @@ Source is where data will be fetched in order to be processed. It can be one of 
 * ```<Function>``` returning a promise.
 * ```<Function(callback)>``` returning nothing and passing data to ```callback``` with error as the first parameter and response as the second one.
 * ```<Promise>``` that resolves to any of the previous source types
+
+**IMPORTANT:** When using ```Function``` and ```Promise``` sources, you must pass ```null``` as value to stop execution.
 
 ## Process
 Process function receives a value from the queue and be anby of the following:
