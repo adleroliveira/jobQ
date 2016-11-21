@@ -94,7 +94,7 @@ var JobQ =
 	  _createClass(JobQueuer, [{
 	    key: 'data',
 	    value: function data(_data) {
-	      return Object.assign({
+	      var obj = {
 	        startTime: this.startTime,
 	        processed: this.jobsFinished,
 	        errors: this.jobErrors,
@@ -102,7 +102,13 @@ var JobQ =
 	        stopOnError: this.stopOnError,
 	        sourceType: this.sourceType,
 	        status: this.status
-	      }, _data || {});
+	      };
+	      if (_data) {
+	        for (var key in _data) {
+	          if (_data.hasOwnProperty(key)) obj[key] = _data[key];
+	        }
+	      }
+	      return obj;
 	    }
 	  }, {
 	    key: 'start',
@@ -171,6 +177,7 @@ var JobQ =
 	        this.empty = false;
 	        this.emit('pooling', this.data());
 	        setTimeout(function () {
+	          _this2.status = 'running';
 	          _this2.fillJobs();
 	        }, this.poolingInterval);
 	      }
