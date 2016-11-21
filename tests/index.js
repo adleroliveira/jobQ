@@ -84,7 +84,7 @@ describe('JosQ', () => {
       it("Should have 2 'error' errors (source)", () => {
         let count = 0
         const source = (cb) => {
-          cb( ++count <= 2 ? new Error('error') : false)
+          cb( ++count <= 2 ? new Error('error') : null, null)
         }
         const process = (val) => val
 
@@ -114,7 +114,7 @@ describe('JosQ', () => {
     before(() => {
       return new Promise((resolve) => {
         let jobQ = new JobQueuer({
-          maxProceses: 10,
+          maxProceses: 0,
           source: source,
           process: (val, cb) => {
             setTimeout(() => {
@@ -177,7 +177,7 @@ describe('JosQ', () => {
   describe('sync function processor', () => {
     let count
     const maxCount = 10
-    const syncSource = () => (++count <= maxCount)
+    const syncSource = () => (++count <= maxCount) ? count : null
     let sourceCallback = (done) => {
       setTimeout(() => {
         done(null, syncSource())
@@ -278,7 +278,7 @@ describe('JosQ', () => {
   describe('async function processor', () => {
     let count
     const maxCount = 10
-    const syncSource = () => (++count <= maxCount)
+    const syncSource = () => (++count <= maxCount) ? count : null
     let sourceCallback = (done) => {
       setTimeout(() => {
         done(null, syncSource())
@@ -381,7 +381,7 @@ describe('JosQ', () => {
   describe('promise processor', () => {
     let count
     const maxCount = 10
-    const syncSource = () => (++count <= maxCount)
+    const syncSource = () => ++count <= maxCount ? count : null
     let sourceCallback = (done) => {
       setTimeout(() => {
         done(null, syncSource())
@@ -552,6 +552,26 @@ describe('JosQ', () => {
 
     it('Should call error 3 times', () => {
       test.number(events.error).is(3)
+    })
+  })
+
+  describe('pause', () => {
+    it('Should pause', () => {
+      return new Promise((resolve) => {
+        const queue = new JobQueuer({
+          source: [1, 2, 3],
+          process: (val) => val
+        })
+        queue.on('jobFetch', () => {
+          queue.pause()
+        }).on('pause', (data) => {
+          test.string(data.status).is('paused')
+          queue.resume()
+        }).on('resume', (data) => {
+          test.string(data.status).is('running')
+          resolve()
+        }).start()
+      })
     })
   })
 })

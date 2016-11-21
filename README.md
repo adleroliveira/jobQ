@@ -96,6 +96,8 @@ Source is where data will be fetched in order to be processed. It can be one of 
 * ```<Function(callback)>``` returning nothing and passing data to ```callback``` with error as the first parameter and response as the second one.
 * ```<Promise>``` that resolves to any of the previous source types
 
+**IMPORTANT:** When using ```Function``` and ```Promise``` sources, you must pass ```null``` as value to stop execution.
+
 ## Process
 Process function receives a value from the queue and be anby of the following:
 * ```<Function>``` that returns a value

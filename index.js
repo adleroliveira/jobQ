@@ -19,7 +19,7 @@ class JobQueuer {
     if (config.stopOnError && typeof config.stopOnError !== 'boolean') throw new Error(TYPE_PROCEED_ON_ERROR)
     this.events = {}
     this.debug = config.debug
-    this.maxProceses = config.maxProceses || 1
+    this.maxProceses = config.maxProceses >= 0 ? config.maxProceses : 1
     this.process = config.process
     this.stopOnError = config.stopOnError || false
     this.sourceType = Array.isArray(config.source) ? 'array' : config.source.then ? 'promise' : 'function'
@@ -34,6 +34,7 @@ class JobQueuer {
     this.fillingJobs = false
     this.autoincrementId = 0
     this.status = 'stoped'
+    this.paused = false
   }
 
   start() {
@@ -47,6 +48,31 @@ class JobQueuer {
       status: this.status
     })
     this.init()
+  }
+
+  pause () {
+    this.paused = true
+    this.status = 'paused'
+    this.emit('pause', {
+      startTime: this.startTime,
+      maxProceses: this.maxProceses,
+      stopOnError: this.stopOnError,
+      sourceType: this.sourceType,
+      status: this.status
+    })
+  }
+
+  resume () {
+    this.paused = false
+    this.status = 'running'
+    this.emit('resume', {
+      startTime: this.startTime,
+      maxProceses: this.maxProceses,
+      stopOnError: this.stopOnError,
+      sourceType: this.sourceType,
+      status: this.status
+    })
+    this.fillJobs()
   }
 
   init () {
@@ -138,7 +164,7 @@ class JobQueuer {
     const resolveJobValue = (jobValue, done) => {
       try {
         let resolved = false
-        if (jobValue) {
+        if (jobValue !== null) {
           let jobPromise = this.process(jobValue, (err, value) => {
             if (!resolved) done(err, value)
           })
@@ -161,6 +187,7 @@ class JobQueuer {
     }
 
     while (
+      !this.paused &&
       (this.maxProceses === 0 || this.running < this.maxProceses)
       && this.status === 'running'
       && ((this.sourceType === 'array' && this.source.length) || (this.sourceType !== 'array'))
@@ -189,7 +216,7 @@ class JobQueuer {
               resolveJobValue(jobValue, done)
             }).catch(done)
           } else {
-            if (item) {
+            if (item !== null) {
               resolved = true
               resolveJobValue(item, done)
             } else {
@@ -217,6 +244,16 @@ class JobQ {
 
   start () {
     this.instance.start()
+    return this
+  }
+
+  pause () {
+    this.instance.pause()
+    return this
+  }
+
+  resume () {
+    this.instance.resume()
     return this
   }
 
