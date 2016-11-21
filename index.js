@@ -41,7 +41,7 @@ class JobQueuer {
   }
 
   data (data) {
-    return Object.assign({
+    let obj = {
       startTime: this.startTime,
       processed: this.jobsFinished,
       errors: this.jobErrors,
@@ -49,7 +49,13 @@ class JobQueuer {
       stopOnError: this.stopOnError,
       sourceType: this.sourceType,
       status: this.status
-    }, data || {})
+    }
+    if (data) {
+      for (let key in data) {
+        if (data.hasOwnProperty(key)) obj[key] = data[key]
+      }
+    }
+    return obj
   }
 
   start() {
