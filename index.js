@@ -51,28 +51,32 @@ class JobQueuer {
   }
 
   pause () {
-    this.paused = true
-    this.status = 'paused'
-    this.emit('pause', {
-      startTime: this.startTime,
-      maxProceses: this.maxProceses,
-      stopOnError: this.stopOnError,
-      sourceType: this.sourceType,
-      status: this.status
-    })
+    if (this.status === 'running') {
+      this.paused = true
+      this.status = 'paused'
+      this.emit('pause', {
+        startTime: this.startTime,
+        maxProceses: this.maxProceses,
+        stopOnError: this.stopOnError,
+        sourceType: this.sourceType,
+        status: this.status
+      })
+    }
   }
 
   resume () {
-    this.paused = false
-    this.status = 'running'
-    this.emit('resume', {
-      startTime: this.startTime,
-      maxProceses: this.maxProceses,
-      stopOnError: this.stopOnError,
-      sourceType: this.sourceType,
-      status: this.status
-    })
-    this.fillJobs()
+    if (this.status !== 'running') {
+      this.paused = false
+      this.status = 'running'
+      this.emit('resume', {
+        startTime: this.startTime,
+        maxProceses: this.maxProceses,
+        stopOnError: this.stopOnError,
+        sourceType: this.sourceType,
+        status: this.status
+      })
+      this.fillJobs()
+    }
   }
 
   init () {

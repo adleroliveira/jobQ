@@ -46,6 +46,8 @@ queue.on('jobFetch', function(){})
 queue.on('jobRun', function(){})
 queue.on('jobFinish', function(){})
 queue.on('processFinish', function(){})
+queue.on('pause', function(){})
+queue.on('resume', function(){})
 queue.on('error', function(){})
 
 queue.start()
@@ -82,6 +84,22 @@ Emited once after calling ```start()``` with an object containing:
  * processed: ```<Number>``` total amount of jobs processed
  * errors: ```<Number>``` total amount of errors
  * status: ```<String>``` queue status. will always be ```finished``` or ```error```.
+
+#### pause
+Emited once after calling ```pause()``` with an object containing:
+ * startTime: ```<Date>``` date when start was called
+ * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+ * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+ * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+ * status: ```<String>``` queue status. will always be paused at this point.
+
+#### resume
+Emited once after calling ```resume()``` with an object containing:
+ * startTime: ```<Date>``` date when start was called
+ * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+ * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+ * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+ * status: ```<String>``` queue status. will always be running at this point.
 
 #### error
 Emited once for each job error:

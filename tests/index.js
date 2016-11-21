@@ -556,6 +556,13 @@ describe('JosQ', () => {
   })
 
   describe('pause', () => {
+    let pauseCount
+    let resumeCount
+    before((done) => {
+      pauseCount = 0
+      resumeCount = 0
+      done()
+    })
     it('Should pause', () => {
       return new Promise((resolve) => {
         const queue = new JobQueuer({
@@ -563,12 +570,21 @@ describe('JosQ', () => {
           process: (val) => val
         })
         queue.on('jobFetch', () => {
-          queue.pause()
+          // Should be called once
+          queue.pause().pause()
         }).on('pause', (data) => {
+          pauseCount++
           test.string(data.status).is('paused')
-          queue.resume()
+          setTimeout(() => {
+            // Should be called once
+            queue.resume().resume()
+          }, 0)
         }).on('resume', (data) => {
+          resumeCount++
           test.string(data.status).is('running')
+        }).on('processFinish', () => {
+          test.number(resumeCount).is(2)
+          test.number(pauseCount).is(3)
           resolve()
         }).start()
       })
