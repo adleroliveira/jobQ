@@ -276,4 +276,3 @@ class JobQ {
 }
 
 module.exports = JobQ
-

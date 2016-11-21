@@ -620,18 +620,17 @@ describe('JosQ', () => {
       return new Promise((resolve, reject) => {
         let count = 0
         let pooling = 0
-        const items = [1, null]
+        const items = [1, null, null, null]
         const queue = new JobQueuer({
           source: (cb) => items[++count],
           process: (val) => val,
-          pooling: 0
+          pooling: 1
         })
         queue.on('pooling', () => {
-          pooling++
-          queue.pause()
+          if (++pooling > 1) queue.pause()
         }).on('pause', () => {
           setTimeout(() => {
-            test.number(pooling).is(1)
+            test.number(pooling).is(2)
             resolve()
           }, 5)
         }).on('processFinish', () => {
