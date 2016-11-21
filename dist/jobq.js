@@ -59,6 +59,7 @@ var JobQ =
 	var SOURCE_REQUIRED = 'Source is required to be a function, promise or array';
 	var TYPE_PROCEED_ON_ERROR = 'parameter stopOnError must be a boolean';
 	var TYPE_EVENT_HANDLER = 'Event handlers must be functions';
+	var POOLING_REQUIRES_FUNCTION_SOURCE = 'Only Function source can be used with pooling';
 
 	var JobQueuer = function () {
 	  function JobQueuer(config) {
@@ -86,6 +87,8 @@ var JobQ =
 	    this.autoincrementId = 0;
 	    this.status = 'stoped';
 	    this.paused = false;
+	    this.poolingInterval = config.pooling >= 0 ? config.pooling : false;
+	    if (this.sourceType === 'array' && this.poolingInterval !== false) throw new Error(POOLING_REQUIRES_FUNCTION_SOURCE);
 	  }
 
 	  _createClass(JobQueuer, [{
@@ -112,7 +115,7 @@ var JobQ =
 	  }, {
 	    key: 'pause',
 	    value: function pause() {
-	      if (this.status === 'running') {
+	      if (this.status === 'running' || this.status === 'pooling') {
 	        this.paused = true;
 	        this.status = 'paused';
 	        this.emit('pause', this.data());
@@ -137,6 +140,7 @@ var JobQ =
 	        this.source.then(function (data) {
 	          _this.sourceType = Array.isArray(data) ? 'array' : data.then ? 'promise' : 'function';
 	          if (_this.sourceType === 'array') {
+	            if (_this.poolingInterval !== false) throw new Error(POOLING_REQUIRES_FUNCTION_SOURCE);
 	            _this.source = data.slice(0);
 	          } else {
 	            _this.source = data;
@@ -152,13 +156,24 @@ var JobQ =
 	  }, {
 	    key: 'processFinish',
 	    value: function processFinish(err) {
+	      var _this2 = this;
+
 	      if (err) {
 	        this.emit('error', err);
 	        this.status = 'error';
 	      } else {
 	        this.status = 'finished';
 	      }
-	      this.emit('processFinish', this.data({ endTime: new Date() }));
+	      if (this.poolingInterval === false) {
+	        this.emit('processFinish', this.data({ endTime: new Date() }));
+	      } else {
+	        this.status = 'pooling';
+	        this.empty = false;
+	        this.emit('pooling', this.data());
+	        setTimeout(function () {
+	          _this2.fillJobs();
+	        }, this.poolingInterval);
+	      }
 	    }
 	  }, {
 	    key: 'on',
@@ -181,35 +196,35 @@ var JobQ =
 	  }, {
 	    key: 'runJob',
 	    value: function runJob(jobPromise) {
-	      var _this2 = this;
+	      var _this3 = this;
 
 	      this.running++;
 	      var jobId = ++this.autoincrementId;
 	      this.emit('jobRun', jobId);
 	      var next = function next() {
-	        var runningCount = --_this2.running;
-	        if (!runningCount && _this2.status === 'empty' || _this2.status === 'error') {
-	          _this2.status = 'finished';
-	          return _this2.processFinish();
+	        var runningCount = --_this3.running;
+	        if (!runningCount && _this3.status === 'empty' || _this3.status === 'error') {
+	          _this3.status = 'finished';
+	          return _this3.processFinish();
 	        }
-	        _this2.fillJobs();
+	        _this3.fillJobs();
 	      };
 
 	      var jobStartTime = new Date();
 	      jobPromise(function (err, result) {
 	        if (err) {
-	          _this2.emit('error', err);
-	          _this2.jobErrors++;
+	          _this3.emit('error', err);
+	          _this3.jobErrors++;
 	        } else if (result) {
 	          var jobEndTime = new Date();
-	          _this2.emit('jobFinish', {
+	          _this3.emit('jobFinish', {
 	            jobId: jobId,
 	            jobStartTime: jobStartTime,
 	            jobEndTime: jobEndTime,
 	            result: result,
-	            jobsRunning: _this2.running
+	            jobsRunning: _this3.running
 	          });
-	          _this2.jobsFinished++;
+	          _this3.jobsFinished++;
 	        }
 	        next();
 	      });
@@ -217,7 +232,7 @@ var JobQ =
 	  }, {
 	    key: 'fillJobs',
 	    value: function fillJobs() {
-	      var _this3 = this;
+	      var _this4 = this;
 
 	      if (this.fillingJobs) return;
 	      this.fillingJobs = true;
@@ -227,7 +242,7 @@ var JobQ =
 	          var _ret = function () {
 	            var resolved = false;
 	            if (jobValue !== null) {
-	              var jobPromise = _this3.process(jobValue, function (err, value) {
+	              var jobPromise = _this4.process(jobValue, function (err, value) {
 	                if (!resolved) done(err, value);
 	              });
 	              if (jobPromise) {
@@ -242,7 +257,7 @@ var JobQ =
 	                done(null, jobPromise);
 	              }
 	            } else {
-	              _this3.status = 'empty';
+	              _this4.status = 'empty';
 	              done();
 	            }
 	          }();
@@ -261,11 +276,11 @@ var JobQ =
 	        var job = function job(done) {
 	          var item = void 0;
 	          var resolved = false;
-	          if (_this3.sourceType === 'array') {
-	            item = _this3.source.splice(0, 1)[0];
-	            if (!_this3.source.length) _this3.status = 'empty';
+	          if (_this4.sourceType === 'array') {
+	            item = _this4.source.splice(0, 1)[0];
+	            if (!_this4.source.length) _this4.status = 'empty';
 	          } else {
-	            item = _this3.source(function (err, jobValue) {
+	            item = _this4.source(function (err, jobValue) {
 	              if (!resolved) {
 	                if (err) return done(err);
 	                resolveJobValue(jobValue, done);
@@ -282,7 +297,8 @@ var JobQ =
 	                resolved = true;
 	                resolveJobValue(item, done);
 	              } else {
-	                _this3.status = 'empty';
+	                _this4.status = 'empty';
+	                resolved = true;
 	                done();
 	              }
 	            }

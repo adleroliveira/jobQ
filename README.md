@@ -32,6 +32,7 @@ queue.start()
 * maxProceses: ```<Number>``` indicates how many jobs will run in parallel. A value of ```0``` means 'no limit'. Default ```1```
 * debug: ```<Boolean>``` enables or disables debug. Default ```false```
 * stopOnError: ```<Boolean>``` indicates if jobs will stop after first error or continue. If enabled, ```processFinish``` will be called with status ```error``` if an error occurs. Default ```false```
+* pooling: ```<Number>``` pooling timeout in milliseconds. When enabled, JobQ will continue to try and fetch data from the source (```Function``` only). Default: No pooling
 
 ## Events
 ```js
@@ -46,6 +47,7 @@ queue.on('jobFetch', function(){})
 queue.on('jobRun', function(){})
 queue.on('jobFinish', function(){})
 queue.on('processFinish', function(){})
+queue.on('pooling', function(){})
 queue.on('pause', function(){})
 queue.on('resume', function(){})
 queue.on('error', function(){})
@@ -89,6 +91,16 @@ Emited once after calling ```start()``` with an object containing:
 * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
 * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
 * status: ```<String>``` queue status. will always be ```finished``` or ```error```.
+
+#### pooling
+Emited every time the source function returns ```null``` as value and JobQ starts waiting to check again. Only emited if ```pooling``` is enabled, with an object containing:
+* startTime: ```<Date>``` date when start was called
+* processed: ```<Number>``` jobs processed so far
+* errors: ```<Number>``` jobs errored so far
+* maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+* stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* status: ```<String>``` queue status. will always be pooling at this point.
 
 #### pause
 Emited once after calling ```pause()``` with an object containing:

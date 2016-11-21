@@ -4,6 +4,7 @@ const PROCESS_REQUIRED = 'required paramenter [process] must be a function'
 const SOURCE_REQUIRED = 'Source is required to be a function, promise or array'
 const TYPE_PROCEED_ON_ERROR = 'parameter stopOnError must be a boolean'
 const TYPE_EVENT_HANDLER = 'Event handlers must be functions'
+const POOLING_REQUIRES_FUNCTION_SOURCE = 'Only Function source can be used with pooling'
 
 class JobQueuer {
   constructor(config) {
@@ -35,6 +36,8 @@ class JobQueuer {
     this.autoincrementId = 0
     this.status = 'stoped'
     this.paused = false
+    this.poolingInterval = config.pooling >= 0 ? config.pooling : false
+    if (this.sourceType === 'array' && this.poolingInterval !== false) throw(new Error(POOLING_REQUIRES_FUNCTION_SOURCE))
   }
 
   data (data) {
@@ -57,7 +60,7 @@ class JobQueuer {
   }
 
   pause () {
-    if (this.status === 'running') {
+    if (this.status === 'running' || this.status === 'pooling') {
       this.paused = true
       this.status = 'paused'
       this.emit('pause', this.data())
@@ -78,6 +81,7 @@ class JobQueuer {
       this.source.then((data) => {
         this.sourceType = Array.isArray(data) ? 'array' : data.then ? 'promise' : 'function'
         if (this.sourceType === 'array') {
+          if (this.poolingInterval !== false) throw(new Error(POOLING_REQUIRES_FUNCTION_SOURCE))
           this.source = data.slice(0)
         } else {
           this.source = data
@@ -98,7 +102,16 @@ class JobQueuer {
     } else {
       this.status = 'finished'
     }
-    this.emit('processFinish', this.data({endTime: new Date()}))
+    if (this.poolingInterval === false) {
+      this.emit('processFinish', this.data({endTime: new Date()}))
+    } else {
+      this.status = 'pooling'
+      this.empty = false
+      this.emit('pooling', this.data())
+      setTimeout(() => {
+        this.fillJobs()
+      }, this.poolingInterval)
+    }
   }
 
   on(event, handler) {
@@ -213,6 +226,7 @@ class JobQueuer {
               resolveJobValue(item, done)
             } else {
               this.status = 'empty'
+              resolved = true
               done()
             }
           }
