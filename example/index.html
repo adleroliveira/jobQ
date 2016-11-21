@@ -1,0 +1,51 @@
+<html>
+  <head>
+    <style>
+    body { background-color: #222 }
+    #container { position: relative; display: block; }
+    #el1 { position: absolute; top:35px; left: 50px; }
+    #el2 { position: absolute; top:35px; left: 200px; }
+    #el3 { position: absolute; top:35px; left: 350px; }
+    #el4 { position: absolute; top:35px; left: 500px; }
+    #el5 { position: absolute; top:35px; left: 650px; }
+    #el6 { position: absolute; top:35px; left: 800px; }
+    #el7 { position: absolute; top:35px; left: 950px; }
+    #el8 { position: absolute; top:35px; left: 1100px; }
+    .box {
+        width: 146px; height: 150px;
+        color: #fff;
+        font-size: 40px;
+        line-height:150px;
+        text-align: center;
+        font-family: sans-serif;
+        font-weight: bold;
+        border-radius: 10px;
+        background-color: #673AB7;
+
+    }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="el1" class="box">Box 1</div>
+      <div id="el2" class="box">Box 2</div>
+      <div id="el3" class="box">Box 3</div>
+      <div id="el4" class="box">Box 4</div>
+      <div id="el5" class="box">Box 5</div>
+      <div id="el6" class="box">Box 6</div>
+      <div id="el7" class="box">Box 7</div>
+      <div id="el8" class="box">Box 8</div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/kute.js/1.5.9/kute.min.js"></script>
+    <script src="../dist/jobq.min.js"></script>
+    <script>
+      var job = new JobQ({
+        source: [].slice.call(document.querySelectorAll('.box')),
+        process: function(el, callback) {
+          KUTE.fromTo(el,{top:35},{top:185},{repeat: 1, yoyo: true, easing: 'easingCubicOut', complete: callback }).start()
+        },
+        maxProceses: 2
+      }).start()
+    </script>
+  </body>
+</html>

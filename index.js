@@ -37,16 +37,22 @@ class JobQueuer {
     this.paused = false
   }
 
-  start() {
-    this.status = 'running'
-    this.startTime = new Date()
-    this.emit('start', {
+  data (data) {
+    return Object.assign({
       startTime: this.startTime,
+      processed: this.jobsFinished,
+      errors: this.jobErrors,
       maxProceses: this.maxProceses,
       stopOnError: this.stopOnError,
       sourceType: this.sourceType,
       status: this.status
-    })
+    }, data || {})
+  }
+
+  start() {
+    this.status = 'running'
+    this.startTime = new Date()
+    this.emit('start', this.data())
     this.init()
   }
 
@@ -54,13 +60,7 @@ class JobQueuer {
     if (this.status === 'running') {
       this.paused = true
       this.status = 'paused'
-      this.emit('pause', {
-        startTime: this.startTime,
-        maxProceses: this.maxProceses,
-        stopOnError: this.stopOnError,
-        sourceType: this.sourceType,
-        status: this.status
-      })
+      this.emit('pause', this.data())
     }
   }
 
@@ -68,13 +68,7 @@ class JobQueuer {
     if (this.status !== 'running') {
       this.paused = false
       this.status = 'running'
-      this.emit('resume', {
-        startTime: this.startTime,
-        maxProceses: this.maxProceses,
-        stopOnError: this.stopOnError,
-        sourceType: this.sourceType,
-        status: this.status
-      })
+      this.emit('resume', this.data())
       this.fillJobs()
     }
   }
@@ -104,13 +98,7 @@ class JobQueuer {
     } else {
       this.status = 'finished'
     }
-    this.emit('processFinish', {
-      startTime: this.startTime,
-      endTime: new Date(),
-      processed: this.jobsFinished,
-      errors: this.jobErrors,
-      status: this.status
-    })
+    this.emit('processFinish', this.data({endTime: new Date()}))
   }
 
   on(event, handler) {
