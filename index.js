@@ -115,6 +115,7 @@ class JobQueuer {
       this.empty = false
       this.emit('pooling', this.data())
       setTimeout(() => {
+        this.status = 'running'
         this.fillJobs()
       }, this.poolingInterval)
     }
