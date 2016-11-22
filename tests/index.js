@@ -30,6 +30,28 @@ describe('JosQ', () => {
       })
     })
 
+    describe('Incorrect use of pooling', () => {
+      it('Should throw "Only Function source can be used with pooling"', () => {
+        test.error(() => {
+          new JobQueuer({
+            pooling: 0,
+            source: [1, 2],
+            process: (val) => val
+          })
+        }).is(new Error("Only Function source can be used with pooling"))
+
+        try {
+          new JobQueuer({
+            pooling: 0,
+            source: new Promise((resolve) => resolve([1, 2])),
+            process: (val) => val
+          }).start()
+        } catch (err) {
+          test.error(err).is(new Error("Only Function source can be used with pooling"))
+        }
+      })
+    })
+
     describe('stopOnError', () => {
       it('Should throw "parameter stopOnError must be a boolean"', () => {
         test.error(() => {
@@ -486,7 +508,9 @@ describe('JosQ', () => {
       return new Promise((resolve) => {
         new JobQueuer({
           maxProceses: 5,
-          source: new Promise((_, reject) => reject(new Error)),
+          source: new Promise((_, reject) => {
+            reject(new Error)
+          }),
           process: process
         }).on('processFinish', (data) => {
           test.number(data.processed).is(0)
@@ -586,6 +610,71 @@ describe('JosQ', () => {
           test.number(resumeCount).is(2)
           test.number(pauseCount).is(3)
           resolve()
+        }).start()
+      })
+    })
+  })
+
+  describe('pooling', () => {
+    it('should start pooling instead of finishing', () => {
+      return new Promise((resolve, reject) => {
+        let count = 0
+        let pooling = 0
+        const items = [1, null, null, null]
+        const queue = new JobQueuer({
+          source: (cb) => items[++count],
+          process: (val) => val,
+          pooling: 1
+        })
+        queue.on('pooling', () => {
+          if (++pooling > 1) queue.pause()
+        }).on('pause', () => {
+          setTimeout(() => {
+            test.number(pooling).is(2)
+            resolve()
+          }, 5)
+        }).on('processFinish', () => {
+          reject()
+        }).start()
+      })
+    })
+  })
+
+  describe('sync and async coherence', () => {
+    it('should ignore callback', () => {
+      return new Promise((resolve, reject) => {
+        new JobQueuer({
+          source: (cb) => {
+            setTimeout(() => {
+              cb(new Error)
+            }, 0);
+            return null
+          },
+          process: (val) => val
+        }).on('error', reject).on('processFinish', (data) => {
+          test.number(data.errors).is(0)
+          setTimeout(() => {
+            resolve()
+          }, 5)
+        }).start()
+      })
+    })
+
+    it('should ignore callback', () => {
+      return new Promise((resolve, reject) => {
+        new JobQueuer({
+          source: [1, 2, 3],
+          process: (val, cb) => {
+            setTimeout(() => {
+              cb(new Error)
+            }, 0);
+            return val
+          }
+        }).on('error', reject).on('processFinish', (data) => {
+          test.number(data.errors).is(0)
+          setTimeout(() => {
+            resolve()
+          }, 5)
         }).start()
       })
     })

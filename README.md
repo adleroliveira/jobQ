@@ -32,6 +32,7 @@ queue.start()
 * maxProceses: ```<Number>``` indicates how many jobs will run in parallel. A value of ```0``` means 'no limit'. Default ```1```
 * debug: ```<Boolean>``` enables or disables debug. Default ```false```
 * stopOnError: ```<Boolean>``` indicates if jobs will stop after first error or continue. If enabled, ```processFinish``` will be called with status ```error``` if an error occurs. Default ```false```
+* pooling: ```<Number>``` pooling timeout in milliseconds. When enabled, JobQ will continue to try and fetch data from the source (```Function``` only). Default: No pooling
 
 ## Events
 ```js
@@ -46,6 +47,7 @@ queue.on('jobFetch', function(){})
 queue.on('jobRun', function(){})
 queue.on('jobFinish', function(){})
 queue.on('processFinish', function(){})
+queue.on('pooling', function(){})
 queue.on('pause', function(){})
 queue.on('resume', function(){})
 queue.on('error', function(){})
@@ -55,55 +57,74 @@ queue.start()
 
 #### start
 Emited once after calling ```start()``` with an object containing:
- * startTime: ```<Date>``` date when start was called
- * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
- * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
- * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
- * status: ```<String>``` queue status. will always be running at this point.
+* startTime: ```<Date>``` date when start was called
+* processed: ```<Number>``` jobs processed so far
+* errors: ```<Number>``` jobs errored so far
+* maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+* stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* status: ```<String>``` queue status. will always be running at this point.
 
 #### jobFetch
 Emited once for each job before fetching it from the queue with an object containing:
- * jobsRunning: ```<Number>``` current amount of processing jobs. It will not count the one that triggered the event.
+* jobsRunning: ```<Number>``` current amount of processing jobs. It will not count the one that triggered the event.
 
 #### jobRun
 Emited once for each job when it starts running with:
- * ```<number>``` job id (autoincrement)
+* ```<number>``` job id (autoincrement)
 
 #### jobFinish
 Emited once after calling ```start()``` with an object containing:
- * jobId: ```<Number>``` job id
- * jobStartTime: ```<Date>``` date when job started to process
- * jobEndTime: ```<Date>``` date when job finishes to process
- * result: ```<any>``` job result received
- * jobsRunning: ```<Number>``` current amount of processing jobs. It will count the one that triggered the event.
+* jobId: ```<Number>``` job id
+* jobStartTime: ```<Date>``` date when job started to process
+* jobEndTime: ```<Date>``` date when job finishes to process
+* result: ```<any>``` job result received
+* jobsRunning: ```<Number>``` current amount of processing jobs. It will count the one that triggered the event.
 
 #### processFinish
 Emited once after calling ```start()``` with an object containing:
- * startTime: ```<Date>``` date when start was called
- * endTime: ```<Date>``` date when queue was fully processed
- * processed: ```<Number>``` total amount of jobs processed
- * errors: ```<Number>``` total amount of errors
- * status: ```<String>``` queue status. will always be ```finished``` or ```error```.
+* startTime: ```<Date>``` date when start was called
+* endTime: ```<Date>``` date when queue was fully processed
+* processed: ```<Number>``` total amount of jobs processed
+* errors: ```<Number>``` total amount of errors
+* maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+* stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* status: ```<String>``` queue status. will always be ```finished``` or ```error```.
+
+#### pooling
+Emited every time the source function returns ```null``` as value and JobQ starts waiting to check again. Only emited if ```pooling``` is enabled, with an object containing:
+* startTime: ```<Date>``` date when start was called
+* processed: ```<Number>``` jobs processed so far
+* errors: ```<Number>``` jobs errored so far
+* maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+* stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* status: ```<String>``` queue status. will always be pooling at this point.
 
 #### pause
 Emited once after calling ```pause()``` with an object containing:
- * startTime: ```<Date>``` date when start was called
- * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
- * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
- * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
- * status: ```<String>``` queue status. will always be paused at this point.
+* startTime: ```<Date>``` date when start was called
+* processed: ```<Number>``` jobs processed so far
+* errors: ```<Number>``` jobs errored so far
+* maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+* stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* status: ```<String>``` queue status. will always be paused at this point.
 
 #### resume
 Emited once after calling ```resume()``` with an object containing:
- * startTime: ```<Date>``` date when start was called
- * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
- * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
- * sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
- * status: ```<String>``` queue status. will always be running at this point.
+* startTime: ```<Date>``` date when start was called
+* processed: ```<Number>``` jobs processed so far
+* errors: ```<Number>``` jobs errored so far
+* maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
+* stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
+* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* status: ```<String>``` queue status. will always be running at this point.
 
 #### error
 Emited once for each job error:
- * ```<Error>``` error received
+* ```<Error>``` error received
 
 ## Source
 Source is where data will be fetched in order to be processed. It can be one of the following:
