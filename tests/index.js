@@ -1,6 +1,8 @@
 'use strict'
 const test = require('unit.js')
 const JobQueuer = require('../lib/index.js')
+const byline = require('byline')
+const fs = require('fs')
 
 describe('JosQ', () => {
   describe('errors', () => {
@@ -21,17 +23,17 @@ describe('JosQ', () => {
     })
 
     describe('No source', () => {
-      it('Should throw "Source is required to be a function, promise or array"', () => {
+      it('Should throw "Source is required to be an array, function, promise or stream"', () => {
         test.error(() => {
           new JobQueuer({
             process: () => {}
           })
-        }).is(new Error("Source is required to be a function, promise or array"))
+        }).is(new Error("Source is required to be an array, function, promise or stream"))
       })
     })
 
     describe('Incorrect use of pooling', () => {
-      it('Should throw "Only Function source can be used with pooling"', () => {
+      it('Should throw "Only Function source can be used with pooling" (array)', () => {
         test.error(() => {
           new JobQueuer({
             pooling: 0,
@@ -39,16 +41,28 @@ describe('JosQ', () => {
             process: (val) => val
           })
         }).is(new Error("Only Function source can be used with pooling"))
+      })
 
+      it('Should throw "Only Function source can be used with pooling" (promise)', () => {
         try {
           new JobQueuer({
             pooling: 0,
             source: new Promise((resolve) => resolve([1, 2])),
             process: (val) => val
-          }).start()
-        } catch (err) {
-          test.error(err).is(new Error("Only Function source can be used with pooling"))
+          })
+        } catch (e) {
+          test.error(e).is(new Error("Only Function source can be used with pooling"))
         }
+      })
+
+      it('Should throw "Only Function source can be used with pooling" (stream)', () => {
+        test.error(() => {
+          new JobQueuer({
+            pooling: 0,
+            source: byline.createStream(fs.createReadStream('./tests/streamTestData.txt', {encoding: 'utf8'})),
+            process: (val) => val
+          })
+        }).is(new Error("Only Function source can be used with pooling"))
       })
     })
 
@@ -295,6 +309,20 @@ describe('JosQ', () => {
         }).start()
       })
     })
+
+    it('Should work with stream source', () => {
+      return new Promise((resolve) => {
+        new JobQueuer({
+          maxProceses: 5,
+          source: byline.createStream(fs.createReadStream('./tests/streamTestData.txt', {encoding: 'utf8'})),
+          process: process
+        }).on('processFinish', (data) => {
+          test.number(data.processed).is(20)
+          resolve()
+        }).start()
+      })
+    })
+
   })
 
   describe('async function processor', () => {
@@ -520,6 +548,22 @@ describe('JosQ', () => {
         }).start()
       })
     })
+
+    it('Should work with stream source', () => {
+      return new Promise((resolve) => {
+        new JobQueuer({
+          maxProceses: 5,
+          source: byline.createStream(fs.createReadStream('./tests/streamTestData.txt', {encoding: 'utf8'})),
+          process: process
+        }).on('processFinish', (data) => {
+          test.number(data.processed).is(20)
+          test.number(data.errors).is(0)
+          test.string(data.status).is('finished')
+          test.string(data.sourceType).is('stream')
+          resolve()
+        }).start()
+      })
+    })
   })
 
   describe('events', () => {
@@ -623,6 +667,32 @@ describe('JosQ', () => {
         const items = [1, null, null, null]
         const queue = new JobQueuer({
           source: (cb) => items[++count],
+          process: (val) => val,
+          pooling: 1
+        })
+        queue.on('pooling', () => {
+          if (++pooling > 1) queue.pause()
+        }).on('pause', () => {
+          setTimeout(() => {
+            test.number(pooling).is(2)
+            resolve()
+          }, 5)
+        }).on('processFinish', () => {
+          reject()
+        }).start()
+      })
+    })
+
+    it('should start pooling instead of finishing (promise)', () => {
+      return new Promise((resolve, reject) => {
+        let count = 0
+        let pooling = 0
+        const items = [1, null, null, null]
+        const processor = (cb) => items[++count]
+        const queue = new JobQueuer({
+          source: new Promise((resolve) => {
+            resolve(processor)
+          }),
           process: (val) => val,
           pooling: 1
         })

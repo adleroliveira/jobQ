@@ -1,7 +1,7 @@
 // Error constants
 const CONFIG_REQUIRED = 'Configuration Object Required'
 const PROCESS_REQUIRED = 'required paramenter [process] must be a function'
-const SOURCE_REQUIRED = 'Source is required to be a function, promise or array'
+const SOURCE_REQUIRED = 'Source is required to be an array, function, promise or stream'
 const TYPE_PROCEED_ON_ERROR = 'parameter stopOnError must be a boolean'
 const TYPE_EVENT_HANDLER = 'Event handlers must be functions'
 const POOLING_REQUIRES_FUNCTION_SOURCE = 'Only Function source can be used with pooling'
@@ -10,20 +10,14 @@ class JobQueuer {
   constructor(config) {
     if (!config) throw new Error(CONFIG_REQUIRED)
     if (!config.process || typeof config.process !== 'function') throw new Error(PROCESS_REQUIRED)
-    if (
-      !config.source || (
-        typeof config.source !== 'function' &&
-        !Array.isArray(config.source) &&
-        !config.source.then
-      )
-    ) throw new Error(SOURCE_REQUIRED)
+    if (!config.source || this.getType(config.source) === 'invalid') throw new Error(SOURCE_REQUIRED)
     if (config.stopOnError && typeof config.stopOnError !== 'boolean') throw new Error(TYPE_PROCEED_ON_ERROR)
     this.events = {}
     this.debug = config.debug
     this.maxProceses = config.maxProceses >= 0 ? config.maxProceses : 1
     this.process = config.process
     this.stopOnError = config.stopOnError || false
-    this.sourceType = Array.isArray(config.source) ? 'array' : config.source.then ? 'promise' : 'function'
+    this.sourceType = this.getType(config.source)
     if (this.sourceType === 'array') {
       this.source = config.source.slice(0)
     } else {
@@ -37,7 +31,7 @@ class JobQueuer {
     this.status = 'stoped'
     this.paused = false
     this.poolingInterval = config.pooling >= 0 ? config.pooling : false
-    if (this.sourceType === 'array' && this.poolingInterval !== false) throw(new Error(POOLING_REQUIRES_FUNCTION_SOURCE))
+    if (this.sourceType !== 'function' && this.sourceType !== 'promise' && this.poolingInterval !== false) throw(new Error(POOLING_REQUIRES_FUNCTION_SOURCE))
   }
 
   data (data) {
@@ -82,11 +76,24 @@ class JobQueuer {
     }
   }
 
+  getType (source) {
+    return source ? (
+      Array.isArray(source) ? 'array' :
+        source.then ? 'promise' :
+          (typeof source._readableState === 'object' && typeof source.on === 'function') ? 'stream' :
+            typeof source === 'function' ? 'function' :
+              'invalid'
+      ) : 'invalid'
+  }
+
   init () {
     if (this.sourceType === 'promise') {
+      this.log("Got promise source. Resolving")
       this.source.then((data) => {
-        this.sourceType = Array.isArray(data) ? 'array' : data.then ? 'promise' : 'function'
-        if (this.sourceType === 'array') {
+        this.sourceType = this.getType(data)
+        if (this.sourceType === 'invalid') {
+          throw new Error(SOURCE_REQUIRED)
+        } else if (this.sourceType !== 'function' && this.sourceType !== 'promise') {
           if (this.poolingInterval !== false) throw(new Error(POOLING_REQUIRES_FUNCTION_SOURCE))
           this.source = data.slice(0)
         } else {
@@ -96,7 +103,11 @@ class JobQueuer {
       }).catch((err) => {
         this.processFinish(err)
       })
+    } else if (this.sourceType === 'stream') {
+      this.log("Got stream source. Initializing")
+      this.initializeStream()
     } else {
+      this.log(`Got ${this.sourceType} source. Starting`)
       this.fillJobs()
     }
   }
@@ -128,8 +139,12 @@ class JobQueuer {
 
   emit(event, payload) {
     if (event === 'error' && this.stopOnError) this.status = 'error'
-    if (this.debug && console) console.log(`[${new Date()}][${event}]`, payload)
+    this.log(event, payload)
     if (this.events[event]) this.events[event](payload)
+  }
+
+  log(type, data) {
+    if (this.debug && console) console.log(`[${new Date()}][${type}]`, data)
   }
 
   runningJobsCount() {
@@ -207,13 +222,17 @@ class JobQueuer {
       this.emit('jobFetch', {
         jobsRunning: this.running
       })
-
       const job = (done) => {
         let item
         let resolved = false
         if (this.sourceType === 'array') {
           item = this.source.splice(0, 1)[0]
           if (!this.source.length) this.status = 'empty'
+        } else if (this.sourceType === 'stream') {
+          this.waitForStreamData((err, jobValue) => {
+            // TODO: Error
+            resolveJobValue(jobValue, done)
+          })
         } else {
           item = this.source((err, jobValue) => {
             if (!resolved) {
@@ -242,6 +261,35 @@ class JobQueuer {
       this.runJob(job)
     }
     this.fillingJobs = false
+  }
+
+  initializeStream () {
+    this.source.on('readable', () => {
+      this.log(`Stream ready. Starting`)
+      this.streamEnded = false
+      this.fillJobs()
+    })
+    this.source.on('end', () => {
+      this.streamEnded = true
+    })
+    // this.source.on('error', (err) => {
+    //   // TODO: Error handling
+    // })
+  }
+
+  waitForStreamData (done) {
+    if (!this.streamEnded) {
+      setTimeout(() => {
+        let item = this.source.read()
+        if (item) {
+          done(null, item)
+        } else {
+          this.waitForStreamData(done)
+        }
+      }, 0)
+    } else {
+      done(null, null)
+    }
   }
 }
 
