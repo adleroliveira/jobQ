@@ -62,7 +62,7 @@ Emited once after calling ```start()``` with an object containing:
 * errors: ```<Number>``` jobs errored so far
 * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
 * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
-* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* sourceType: ```<String>``` Detected source type (```array```, ```function```, ```promise``` or ```stream```).
 * status: ```<String>``` queue status. will always be running at this point.
 
 #### jobFetch
@@ -89,7 +89,7 @@ Emited once after calling ```start()``` with an object containing:
 * errors: ```<Number>``` total amount of errors
 * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
 * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
-* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* sourceType: ```<String>``` Detected source type (```array```, ```function```, ```promise``` or ```stream```).
 * status: ```<String>``` queue status. will always be ```finished``` or ```error```.
 
 #### pooling
@@ -99,7 +99,7 @@ Emited every time the source function returns ```null``` as value and JobQ start
 * errors: ```<Number>``` jobs errored so far
 * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
 * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
-* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* sourceType: ```<String>``` Detected source type (```array```, ```function```, ```promise``` or ```stream```).
 * status: ```<String>``` queue status. will always be pooling at this point.
 
 #### pause
@@ -109,7 +109,7 @@ Emited once after calling ```pause()``` with an object containing:
 * errors: ```<Number>``` jobs errored so far
 * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
 * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
-* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* sourceType: ```<String>``` Detected source type (```array```, ```function```, ```promise``` or ```stream```).
 * status: ```<String>``` queue status. will always be paused at this point.
 
 #### resume
@@ -119,7 +119,7 @@ Emited once after calling ```resume()``` with an object containing:
 * errors: ```<Number>``` jobs errored so far
 * maxProceses: ```<Number>``` maxProceses passed to constructor. Default ```1```
 * stopOnError: ```<Boolean>``` stopOnError passed to constructor. Default ```false```
-* sourceType: ```<String>``` Detected source type (```array```, ```promise``` or ```function```).
+* sourceType: ```<String>``` Detected source type (```array```, ```function```, ```promise``` or ```stream```).
 * status: ```<String>``` queue status. will always be running at this point.
 
 #### error
@@ -133,7 +133,8 @@ Source is where data will be fetched in order to be processed. It can be one of 
 * ```<Function>``` returning a value.
 * ```<Function>``` returning a promise.
 * ```<Function(callback)>``` returning nothing and passing data to ```callback``` with error as the first parameter and response as the second one.
-* ```<Promise>``` that resolves to any of the previous source types
+* ```<ReadableStream>``` that supports ```on('readable')``` and ```read()```.
+* ```<Promise>``` that resolves to any of the previous source types.
 
 **IMPORTANT:** When using ```Function``` and ```Promise``` sources, you must pass ```null``` as value to stop execution.
 

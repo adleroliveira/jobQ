@@ -43,7 +43,7 @@ var JobQ =
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	'use strict';
 
@@ -56,7 +56,7 @@ var JobQ =
 	// Error constants
 	var CONFIG_REQUIRED = 'Configuration Object Required';
 	var PROCESS_REQUIRED = 'required paramenter [process] must be a function';
-	var SOURCE_REQUIRED = 'Source is required to be a function, promise or array';
+	var SOURCE_REQUIRED = 'Source is required to be an array, function, promise or stream';
 	var TYPE_PROCEED_ON_ERROR = 'parameter stopOnError must be a boolean';
 	var TYPE_EVENT_HANDLER = 'Event handlers must be functions';
 	var POOLING_REQUIRES_FUNCTION_SOURCE = 'Only Function source can be used with pooling';
@@ -67,14 +67,14 @@ var JobQ =
 
 	    if (!config) throw new Error(CONFIG_REQUIRED);
 	    if (!config.process || typeof config.process !== 'function') throw new Error(PROCESS_REQUIRED);
-	    if (!config.source || typeof config.source !== 'function' && !Array.isArray(config.source) && !config.source.then) throw new Error(SOURCE_REQUIRED);
+	    if (!config.source || this.getType(config.source) === 'invalid') throw new Error(SOURCE_REQUIRED);
 	    if (config.stopOnError && typeof config.stopOnError !== 'boolean') throw new Error(TYPE_PROCEED_ON_ERROR);
 	    this.events = {};
 	    this.debug = config.debug;
 	    this.maxProceses = config.maxProceses >= 0 ? config.maxProceses : 1;
 	    this.process = config.process;
 	    this.stopOnError = config.stopOnError || false;
-	    this.sourceType = Array.isArray(config.source) ? 'array' : config.source.then ? 'promise' : 'function';
+	    this.sourceType = this.getType(config.source);
 	    if (this.sourceType === 'array') {
 	      this.source = config.source.slice(0);
 	    } else {
@@ -88,7 +88,7 @@ var JobQ =
 	    this.status = 'stoped';
 	    this.paused = false;
 	    this.poolingInterval = config.pooling >= 0 ? config.pooling : false;
-	    if (this.sourceType === 'array' && this.poolingInterval !== false) throw new Error(POOLING_REQUIRES_FUNCTION_SOURCE);
+	    if (this.sourceType !== 'function' && this.sourceType !== 'promise' && this.poolingInterval !== false) throw new Error(POOLING_REQUIRES_FUNCTION_SOURCE);
 	  }
 
 	  _createClass(JobQueuer, [{
@@ -138,14 +138,22 @@ var JobQ =
 	      }
 	    }
 	  }, {
+	    key: 'getType',
+	    value: function getType(source) {
+	      return source ? Array.isArray(source) ? 'array' : source.then ? 'promise' : _typeof(source._readableState) === 'object' && typeof source.on === 'function' ? 'stream' : typeof source === 'function' ? 'function' : 'invalid' : 'invalid';
+	    }
+	  }, {
 	    key: 'init',
 	    value: function init() {
 	      var _this = this;
 
 	      if (this.sourceType === 'promise') {
+	        this.log("Got promise source. Resolving");
 	        this.source.then(function (data) {
-	          _this.sourceType = Array.isArray(data) ? 'array' : data.then ? 'promise' : 'function';
-	          if (_this.sourceType === 'array') {
+	          _this.sourceType = _this.getType(data);
+	          if (_this.sourceType === 'invalid') {
+	            throw new Error(SOURCE_REQUIRED);
+	          } else if (_this.sourceType !== 'function' && _this.sourceType !== 'promise') {
 	            if (_this.poolingInterval !== false) throw new Error(POOLING_REQUIRES_FUNCTION_SOURCE);
 	            _this.source = data.slice(0);
 	          } else {
@@ -155,7 +163,11 @@ var JobQ =
 	        }).catch(function (err) {
 	          _this.processFinish(err);
 	        });
+	      } else if (this.sourceType === 'stream') {
+	        this.log("Got stream source. Initializing");
+	        this.initializeStream();
 	      } else {
+	        this.log('Got ' + this.sourceType + ' source. Starting');
 	        this.fillJobs();
 	      }
 	    }
@@ -192,8 +204,13 @@ var JobQ =
 	    key: 'emit',
 	    value: function emit(event, payload) {
 	      if (event === 'error' && this.stopOnError) this.status = 'error';
-	      if (this.debug && console) console.log('[' + new Date() + '][' + event + ']', payload);
+	      this.log(event, payload);
 	      if (this.events[event]) this.events[event](payload);
+	    }
+	  }, {
+	    key: 'log',
+	    value: function log(type, data) {
+	      if (this.debug && console) console.log('[' + new Date() + '][' + type + ']', data);
 	    }
 	  }, {
 	    key: 'runningJobsCount',
@@ -246,30 +263,24 @@ var JobQ =
 
 	      var resolveJobValue = function resolveJobValue(jobValue, done) {
 	        try {
-	          var _ret = function () {
-	            var resolved = false;
-	            if (jobValue !== null) {
-	              var jobPromise = _this4.process(jobValue, function (err, value) {
-	                if (!resolved) done(err, value);
-	              });
-	              if (jobPromise) {
-	                resolved = true;
-	                if (typeof jobPromise.then === 'function') {
-	                  return {
-	                    v: jobPromise.then(function (data) {
-	                      done(null, data);
-	                    }).catch(done)
-	                  };
-	                }
-	                done(null, jobPromise);
+	          var resolved = false;
+	          if (jobValue !== null) {
+	            var jobPromise = _this4.process(jobValue, function (err, value) {
+	              if (!resolved) done(err, value);
+	            });
+	            if (jobPromise) {
+	              resolved = true;
+	              if (typeof jobPromise.then === 'function') {
+	                return jobPromise.then(function (data) {
+	                  done(null, data);
+	                }).catch(done);
 	              }
-	            } else {
-	              _this4.status = 'empty';
-	              done();
+	              done(null, jobPromise);
 	            }
-	          }();
-
-	          if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
+	          } else {
+	            _this4.status = 'empty';
+	            done();
+	          }
 	        } catch (e) {
 	          done(e);
 	        }
@@ -279,13 +290,17 @@ var JobQ =
 	        this.emit('jobFetch', {
 	          jobsRunning: this.running
 	        });
-
 	        var job = function job(done) {
 	          var item = void 0;
 	          var resolved = false;
 	          if (_this4.sourceType === 'array') {
 	            item = _this4.source.splice(0, 1)[0];
 	            if (!_this4.source.length) _this4.status = 'empty';
+	          } else if (_this4.sourceType === 'stream') {
+	            _this4.waitForStreamData(function (err, jobValue) {
+	              // TODO: Error
+	              resolveJobValue(jobValue, done);
+	            });
 	          } else {
 	            item = _this4.source(function (err, jobValue) {
 	              if (!resolved) {
@@ -314,6 +329,41 @@ var JobQ =
 	        this.runJob(job);
 	      }
 	      this.fillingJobs = false;
+	    }
+	  }, {
+	    key: 'initializeStream',
+	    value: function initializeStream() {
+	      var _this5 = this;
+
+	      this.source.on('readable', function () {
+	        _this5.log('Stream ready. Starting');
+	        _this5.streamEnded = false;
+	        _this5.fillJobs();
+	      });
+	      this.source.on('end', function () {
+	        _this5.streamEnded = true;
+	      });
+	      // this.source.on('error', (err) => {
+	      //   // TODO: Error handling
+	      // })
+	    }
+	  }, {
+	    key: 'waitForStreamData',
+	    value: function waitForStreamData(done) {
+	      var _this6 = this;
+
+	      if (!this.streamEnded) {
+	        setTimeout(function () {
+	          var item = _this6.source.read();
+	          if (item) {
+	            done(null, item);
+	          } else {
+	            _this6.waitForStreamData(done);
+	          }
+	        }, 0);
+	      } else {
+	        done(null, null);
+	      }
 	    }
 	  }]);
 
@@ -363,5 +413,5 @@ var JobQ =
 
 	module.exports = JobQ;
 
-/***/ }
+/***/ })
 /******/ ]);
